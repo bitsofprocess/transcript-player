@@ -28,7 +28,7 @@ ${numbered}`;
     },
     {
       headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${process.env.TRANSCRIPT_OPENROUTER_KEY}`,
         'Content-Type': 'application/json',
       },
     }

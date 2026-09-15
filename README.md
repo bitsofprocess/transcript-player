@@ -46,7 +46,7 @@ Create a `.env` file:
 
 ```bash
 cp .env.example .env
-# Edit .env and add your OPENROUTER_API_KEY
+# Edit .env and add your TRANSCRIPT_OPENROUTER_KEY
 ```
 
 ### 3. Run
@@ -84,7 +84,7 @@ transcript-player/
 ├── data/
 │   ├── db.sqlite          # SQLite database (gitignored)
 │   └── audio/             # Uploaded audio files (gitignored)
-├── .env                   # OPENROUTER_API_KEY (gitignored)
+├── .env                   # TRANSCRIPT_OPENROUTER_KEY (gitignored)
 └── .env.example
 ```
 
@@ -144,7 +144,7 @@ All segments are batched into a single DeepSeek prompt for efficiency. The respo
 
 | Variable | Description |
 |----------|-------------|
-| `OPENROUTER_API_KEY` | Your OpenRouter API key |
+| `TRANSCRIPT_OPENROUTER_KEY` | Your OpenRouter API key |
 | `PORT` | Server port (default: 3000) |
 
 ---
