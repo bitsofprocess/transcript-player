@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Player — Transcript Player</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back-link">&larr; All episodes</a>
+
+    <h1 id="episode-title">Loading...</h1>
+    <p id="episode-status" class="status-badge"></p>
+
+    <div id="player-area" class="hidden">
+      <div id="transcript" class="transcript"></div>
+    </div>
+
+    <div id="player-bar" class="player-bar hidden">
+      <audio id="audio-player" controls preload="metadata"></audio>
+    </div>
+
+    <div id="player-error" class="error hidden"></div>
+  </div>
+
+  <script src="/player.js"></script>
+</body>
+</html>

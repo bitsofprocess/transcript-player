@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transcript Player</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Transcript Player</h1>
+
+    <!-- Upload section -->
+    <section class="upload-section">
+      <h2>Upload Audio</h2>
+      <form id="upload-form" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="title">Title (optional):</label>
+          <input type="text" id="title" name="title" placeholder="Defaults to filename">
+        </div>
+        <div class="form-group">
+          <label>Audio file:</label>
+          <div class="upload-tabs">
+            <button type="button" class="upload-tab active" data-tab="drop">Drag &amp; Drop</button>
+            <button type="button" class="upload-tab" data-tab="browse">Browse</button>
+          </div>
+          <div class="upload-panel active" id="panel-drop">
+            <div class="drop-zone" id="drop-zone">
+              <div class="drop-zone-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#57606a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </div>
+              <p class="drop-zone-text">Drop an audio file here</p>
+              <p class="drop-zone-hint">MP3, WAV, FLAC, M4A, OGG</p>
+            </div>
+          </div>
+          <div class="upload-panel" id="panel-browse">
+            <input type="file" id="audio-file" name="audio" accept="audio/*" required>
+          </div>
+          <div id="file-selected" class="file-selected hidden">
+            <span id="file-name"></span>
+            <button type="button" id="file-clear" class="file-clear">&times;</button>
+          </div>
+        </div>
+        <button type="submit" id="upload-btn">Upload &amp; Transcribe</button>
+      </form>
+
+      <div id="upload-status" class="status hidden">
+        <div id="progress-bar" class="progress-bar hidden">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <span id="status-text"></span>
+        <div id="status-timer"></div>
+      </div>
+    </section>
+
+    <!-- Episodes list -->
+    <section class="episodes-section">
+      <h2>Episodes</h2>
+      <div id="episodes-list">
+        <p class="muted">Loading episodes...</p>
+      </div>
+    </section>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

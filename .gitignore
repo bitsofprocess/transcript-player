@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets (NEVER commit these)
+.env
+.env.local
+.env.*.local
+
+# Database (contains transcript data)
+data/db.sqlite
+data/db.sqlite-*
+
+# Uploaded audio (user content + potentially copyrighted material)
+data/audio/
+
+# Logs & OS cruft
+*.log
+.DS_Store
