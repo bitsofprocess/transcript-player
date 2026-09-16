@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const { randomUUID } = require('crypto');
 const { initDb } = require('./db/schema');
+const { checkFfmpeg } = require('./services/audio');
 const {
   createEpisodeHandler,
   listEpisodesHandler,
@@ -12,6 +13,7 @@ const {
   getStatusHandler,
   deleteEpisodeHandler,
   renameEpisodeHandler,
+  retryEpisodeHandler,
 } = require('./routes/episodes');
 
 const app = express();
@@ -19,6 +21,9 @@ const PORT = process.env.PORT || 3000;
 
 // Initialize database
 initDb();
+
+// Verify ffmpeg/ffprobe are available (logs a clear error if missing)
+checkFfmpeg();
 
 // Multer: generate episode ID before file save, use it as filename
 const storage = multer.diskStorage({
@@ -62,6 +67,9 @@ app.delete('/api/episodes/:id', deleteEpisodeHandler);
 
 // PATCH /api/episodes/:id — rename
 app.patch('/api/episodes/:id', renameEpisodeHandler);
+
+// POST /api/episodes/:id/retry — resume a failed/killed episode
+app.post('/api/episodes/:id/retry', retryEpisodeHandler);
 
 // Multer error handler
 app.use((err, req, res, next) => {

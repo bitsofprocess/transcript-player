@@ -25,6 +25,8 @@ function initDb() {
       duration_seconds REAL,
       status TEXT NOT NULL DEFAULT 'processing',
       stage TEXT,
+      progress_done INTEGER NOT NULL DEFAULT 0,
+      progress_total INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -48,16 +50,27 @@ function initDb() {
       end_time REAL NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS chunks (
+      episode_id TEXT NOT NULL REFERENCES episodes(id),
+      idx INTEGER NOT NULL,
+      start_sec REAL NOT NULL,
+      end_sec REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      attempts INTEGER NOT NULL DEFAULT 0,
+      result_json TEXT,
+      error TEXT,
+      PRIMARY KEY (episode_id, idx)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_segments_episode ON segments(episode_id, seq);
     CREATE INDEX IF NOT EXISTS idx_words_segment ON words(segment_id, seq);
   `);
 
   // Add stage column for existing databases
-  try {
-    conn.exec('ALTER TABLE episodes ADD COLUMN stage TEXT');
-  } catch (e) {
-    // Column already exists, ignore
-  }
+  try { conn.exec('ALTER TABLE episodes ADD COLUMN stage TEXT'); } catch (e) { /* already exists */ }
+  // Add progress columns for existing databases
+  try { conn.exec('ALTER TABLE episodes ADD COLUMN progress_done INTEGER NOT NULL DEFAULT 0'); } catch (e) { /* already exists */ }
+  try { conn.exec('ALTER TABLE episodes ADD COLUMN progress_total INTEGER NOT NULL DEFAULT 0'); } catch (e) { /* already exists */ }
 
   console.log('Database initialized');
 }

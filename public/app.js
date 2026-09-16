@@ -177,12 +177,17 @@ function updateElapsed() {
   statusTimer.textContent = `Elapsed: ${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function stageLabel(stage) {
+function stageLabel(stage, done, total) {
   const map = {
-    transcribing: 'Transcribing audio...',
-    translating: 'Translating segments...',
+    transcribing: 'Transcribing audio',
+    translating: 'Translating segments',
+    merging: 'Merging results',
   };
-  return map[stage] || stage || 'Processing...';
+  const label = map[stage] || stage || 'Processing';
+  if (done > 0 && total > 0) {
+    return `${label}... ${done}/${total}`;
+  }
+  return `${label}...`;
 }
 
 async function pollStatus(episodeId) {
@@ -191,8 +196,17 @@ async function pollStatus(episodeId) {
       const res = await fetch(`/api/episodes/${episodeId}/status`);
       const data = await res.json();
 
+      const done = data.progress_done || 0;
+      const total = data.progress_total || 0;
+
       if (data.stage) {
-        statusText.textContent = stageLabel(data.stage);
+        statusText.textContent = stageLabel(data.stage, done, total);
+      }
+
+      // Show determinate progress bar when we have progress numbers
+      if (done > 0 && total > 0) {
+        progressBar.classList.remove('indeterminate');
+        progressFill.style.width = Math.round((done / total) * 100) + '%';
       }
 
       if (data.status === 'ready') {
@@ -208,9 +222,7 @@ async function pollStatus(episodeId) {
       } else if (data.status === 'error') {
         clearInterval(interval);
         clearInterval(pollTimerInterval);
-        showStatus('error', 'Processing failed. Check the server logs for details.');
-        statusTimer.textContent = '';
-        uploadBtn.disabled = false;
+        showErrorState(episodeId);
       }
     } catch (err) {
       // Server may be restarting — keep polling, show retrying
@@ -218,6 +230,40 @@ async function pollStatus(episodeId) {
       statusTimer.textContent = statusTimer.textContent ? statusTimer.textContent + ' (retrying...)' : '';
     }
   }, 2000);
+}
+
+function showErrorState(episodeId) {
+  uploadStatus.className = 'status error';
+  progressBar.classList.add('hidden');
+  statusText.textContent = 'Processing failed.';
+  statusTimer.textContent = '';
+
+  // Add retry button
+  const retryBtn = document.createElement('button');
+  retryBtn.className = 'btn-retry';
+  retryBtn.textContent = 'Retry';
+  retryBtn.addEventListener('click', async () => {
+    retryBtn.disabled = true;
+    retryBtn.textContent = 'Retrying...';
+    try {
+      const res = await fetch(`/api/episodes/${episodeId}/retry`, { method: 'POST' });
+      if (res.ok) {
+        // Restart polling
+        showProcessingStatus();
+        pollStatus(episodeId);
+      } else {
+        retryBtn.disabled = false;
+        retryBtn.textContent = 'Retry';
+        statusText.textContent = 'Retry failed. Check server logs.';
+      }
+    } catch (err) {
+      retryBtn.disabled = false;
+      retryBtn.textContent = 'Retry';
+      statusText.textContent = 'Retry failed: network error.';
+    }
+  });
+  uploadStatus.appendChild(retryBtn);
+  uploadBtn.disabled = false;
 }
 
 function showStatus(type, message) {

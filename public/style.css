@@ -208,6 +208,20 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.btn-retry {
+  display: block;
+  margin-top: 10px;
+  background: #cf222e;
+}
+
+.btn-retry:hover {
+  background: #a40e26;
+}
+
+.btn-retry:disabled {
+  background: #ff818266;
+}
+
 .status {
   margin-top: 16px;
   padding: 12px;

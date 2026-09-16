@@ -59,10 +59,20 @@ function pollStatus(id) {
       const res = await fetch(`/api/episodes/${id}/status`);
       const data = await res.json();
 
-      // Show stage if available
+      // Show stage with progress if available
       if (data.stage) {
-        const labels = { transcribing: 'Transcribing audio...', translating: 'Translating segments...' };
-        episodeStatus.textContent = labels[data.stage] || data.stage;
+        const labels = {
+          transcribing: 'Transcribing audio',
+          translating: 'Translating segments',
+          merging: 'Merging results',
+        };
+        let label = labels[data.stage] || data.stage;
+        const done = data.progress_done || 0;
+        const total = data.progress_total || 0;
+        if (done > 0 && total > 0) {
+          label += ` ${done}/${total}`;
+        }
+        episodeStatus.textContent = label;
       }
 
       // Show elapsed time
@@ -76,13 +86,46 @@ function pollStatus(id) {
         loadEpisode(id);
       } else if (data.status === 'error') {
         clearInterval(interval);
-        showError('This episode failed to process. Please check the server logs.');
+        showErrorState(id);
       }
     } catch (err) {
       console.error('Poll error:', err);
       episodeStatus.textContent = 'Retrying...';
     }
   }, 2000);
+}
+
+function showErrorState(id) {
+  episodeTitle.textContent = 'Processing failed';
+  episodeStatus.textContent = 'Error';
+  episodeStatus.className = 'status-badge error';
+
+  // Add retry button
+  const retryBtn = document.createElement('button');
+  retryBtn.className = 'btn-retry';
+  retryBtn.textContent = 'Retry';
+  retryBtn.addEventListener('click', async () => {
+    retryBtn.disabled = true;
+    retryBtn.textContent = 'Retrying...';
+    try {
+      const res = await fetch(`/api/episodes/${id}/retry`, { method: 'POST' });
+      if (res.ok) {
+        episodeStatus.textContent = 'processing...';
+        episodeStatus.className = 'status-badge processing';
+        retryBtn.remove();
+        pollStatus(id);
+      } else {
+        retryBtn.disabled = false;
+        retryBtn.textContent = 'Retry';
+        episodeTitle.textContent = 'Retry failed. Check server logs.';
+      }
+    } catch (err) {
+      retryBtn.disabled = false;
+      retryBtn.textContent = 'Retry';
+      episodeTitle.textContent = 'Retry failed: network error.';
+    }
+  });
+  playerError.appendChild(retryBtn);
 }
 
 function renderPlayer(ep) {

@@ -2,41 +2,85 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const FormData = require('form-data');
+const { withRetry } = require('./pool');
+const config = require('../config');
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 
+// Shared across calls — reset per episode
+let tscribeUsage = { prompt_tokens: 0, completion_tokens: 0, reasoning_tokens: 0, cost: 0, calls: 0 };
+
+function resetTranscribeUsage() {
+  tscribeUsage = { prompt_tokens: 0, completion_tokens: 0, reasoning_tokens: 0, cost: 0, calls: 0 };
+}
+
+function getTranscribeUsage() {
+  return { ...tscribeUsage };
+}
+
+function logTranscribeUsage(episodeId, chunkIdx, usage) {
+  const promptTokens = usage?.prompt_tokens || 0;
+  const completionTokens = usage?.completion_tokens || 0;
+  const reasoningTokens = usage?.completion_tokens_details?.reasoning_tokens || 0;
+  const cost = usage?.cost || 0;
+
+  tscribeUsage.prompt_tokens += promptTokens;
+  tscribeUsage.completion_tokens += completionTokens;
+  tscribeUsage.reasoning_tokens += reasoningTokens;
+  tscribeUsage.cost += cost;
+  tscribeUsage.calls += 1;
+
+  console.log(
+    `[usage] transcription episode=${episodeId} chunk=${chunkIdx} ` +
+    `prompt=${promptTokens} completion=${completionTokens} ` +
+    `reasoning=${reasoningTokens} cost=$${cost.toFixed(6)}`
+  );
+}
+
 /**
- * Transcribe an audio file using OpenRouter's Whisper endpoint.
+ * Transcribe a single audio chunk using OpenRouter's Whisper endpoint.
+ *
+ * Chunk-specific options:
+ *   - language="de" (explicit; short chunks get misdetected otherwise)
+ *   - prompt=WHISPER_PROMPT if non-empty (identical for every chunk)
+ *   - 180s axios timeout + exponential retry via withRetry
  *
  * NOTE: OpenRouter's Whisper returns an EITHER/OR response:
  *   - timestamp_granularities=word → flat words[] array, NO segments
  *   - timestamp_granularities=segment (or omitted) → segments[], NO nested words
- * So we use the word-level response and derive segments ourselves by
- * grouping words at sentence boundaries and long pauses.
+ * So we use the word-level response and derive segments ourselves.
  *
  * Returns: { duration, segments: [{ start, end, text, words: [{ word, start, end }] }] }
  */
-async function transcribe(audioPath) {
+async function transcribeChunk(filePath, episodeId, chunkIdx) {
   const form = new FormData();
   form.append('model', 'openai/whisper-large-v3');
-  form.append('file', fs.createReadStream(audioPath), {
-    filename: path.basename(audioPath),
+  form.append('file', fs.createReadStream(filePath), {
+    filename: path.basename(filePath),
   });
   form.append('response_format', 'verbose_json');
   form.append('timestamp_granularities', 'word');
+  form.append('language', 'de');
+  if (config.WHISPER_PROMPT) {
+    form.append('prompt', config.WHISPER_PROMPT);
+  }
 
-  const response = await axios.post(
-    `${OPENROUTER_BASE}/audio/transcriptions`,
-    form,
-    {
+  const response = await withRetry(() =>
+    axios.post(`${OPENROUTER_BASE}/audio/transcriptions`, form, {
       headers: {
         ...form.getHeaders(),
         Authorization: `Bearer ${process.env.TRANSCRIPT_OPENROUTER_KEY}`,
       },
-    }
+      timeout: 180_000,
+    })
   );
 
   const data = response.data;
+
+  // Log usage
+  const episodeIdStr = episodeId || 'unknown';
+  const chunkIdxStr = chunkIdx !== undefined ? chunkIdx : '?';
+  logTranscribeUsage(episodeIdStr, chunkIdxStr, data.usage);
 
   // Handle case where OpenRouter returns an error payload
   if (data.error) {
@@ -54,6 +98,47 @@ async function transcribe(audioPath) {
   return {
     duration: data.duration || null,
     segments,
+  };
+}
+
+/**
+ * Backward-compatible wrapper (used by Phase 1 single-file path, scripts, etc.)
+ */
+async function transcribe(audioPath) {
+  return transcribeChunk(audioPath);
+}
+
+/**
+ * Phase 2 naive merge: take chunk results (from chunks.result_json) and stitch
+ * them into a single { duration, segments } result. This is a throwaway bridge
+ * replaced by the full merge in Phase 3.
+ */
+function naiveMergeChunks(chunkRows) {
+  // Each row: { idx, start_sec, end_sec, result_json }
+  const sorted = [...chunkRows].sort((a, b) => a.idx - b.idx);
+  const allSegments = [];
+
+  for (const chunk of sorted) {
+    const offset = chunk.start_sec;
+    const result = JSON.parse(chunk.result_json);
+
+    for (const seg of result.segments) {
+      allSegments.push({
+        start: seg.start + offset,
+        end: seg.end + offset,
+        text: seg.text,
+        words: (seg.words || []).map((w) => ({
+          word: w.word,
+          start: w.start + offset,
+          end: w.end + offset,
+        })),
+      });
+    }
+  }
+
+  return {
+    duration: sorted.length > 0 ? sorted[sorted.length - 1].end_sec : 0,
+    segments: allSegments,
   };
 }
 
@@ -142,7 +227,6 @@ function mergeShortSegments(segments) {
 }
 
 function isNumeric(word) {
-  // True if the word is just digits, commas, and periods (e.g. "300.000", "5.000", "1.")
   return /^[\d.,]+$/.test(word);
 }
 
@@ -151,7 +235,7 @@ function buildSegment({ start, end, textParts, wordObjs }) {
     start,
     end,
     text: textParts.join(' '),
-    words: wordObjs.map(w => ({
+    words: wordObjs.map((w) => ({
       word: w.word,
       start: w.start,
       end: w.end,
@@ -181,4 +265,4 @@ function splitSegment(current, splitAt) {
   return tail;
 }
 
-module.exports = { transcribe };
+module.exports = { transcribe, transcribeChunk, naiveMergeChunks, resetTranscribeUsage, getTranscribeUsage };
