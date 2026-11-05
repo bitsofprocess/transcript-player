@@ -13,6 +13,10 @@ Single-user, local, no auth.
 3. **Translate** with OpenRouter DeepSeek (`deepseek/deepseek-v4-pro`)
 4. **Play** with an interactive transcript player — words highlight as audio plays, click segments to toggle English, click words to seek
 
+## Demo
+
+![Transcript Player demo](public/transcript.gif)
+
 ---
 
 ## Tech Stack
@@ -135,7 +139,7 @@ All segments are batched into a single DeepSeek prompt for efficiency. The respo
 
 ## Frontend Features
 
-- **Upload**: Drag & drop (default) or browse tab, progress bar, animated processing indicator with stage label + elapsed timer
+- **Upload**: Drag & drop (default) or browse tab, progress bar with chunk/batch count, animated processing indicator with stage label + elapsed timer
 - **Player**: Word-level highlighting synced to audio, click segment → toggle English translation, click word → seek, ▶ per segment, fixed bottom audio bar, double-click title to rename, delete episodes
 
 ---
